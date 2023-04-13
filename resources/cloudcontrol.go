@@ -39,7 +39,7 @@ func init() {
 
 func NewListCloudControlResource(typeName string) func(*session.Session) ([]Resource, error) {
 	return func(sess *session.Session) ([]Resource, error) {
-		svc := cloudcontrolapi.New(sess)
+		svc := cloudcontrolapi.New(sess, aws.NewConfig().WithMaxRetries(3))
 
 		params := &cloudcontrolapi.ListResourcesInput{
 			TypeName: aws.String(typeName),
