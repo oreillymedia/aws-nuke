@@ -53,11 +53,18 @@ func ListCognitoUserPools(sess *session.Session) ([]Resource, error) {
 }
 
 func (f *CognitoUserPool) DisableDeletionProtection() error {
-	params := &cognitoidentityprovider.UpdateUserPoolInput{
-		UserPoolId:         f.id,
-		DeletionProtection: aws.String("INACTIVE"),
+
+	output, err := f.svc.DescribeUserPool(&cognitoidentityprovider.DescribeUserPoolInput{
+		UserPoolId: f.id,
+	})
+	if err != nil {
+		return err
 	}
-	_, err := f.svc.UpdateUserPool(params)
+	_, err = f.svc.UpdateUserPool(&cognitoidentityprovider.UpdateUserPoolInput{
+		UserPoolId:             f.id,
+		DeletionProtection:     aws.String("INACTIVE"),
+		AutoVerifiedAttributes: output.UserPool.UserAttributeUpdateSettings.AttributesRequireVerificationBeforeUpdate,
+	})
 	if err != nil {
 		return err
 	}
