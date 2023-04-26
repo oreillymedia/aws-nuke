@@ -42,6 +42,7 @@ type FeatureFlags struct {
 }
 
 type DisableDeletionProtection struct {
+	CognitoUserPool     bool `yaml:"CognitoUserPool"`
 	RDSInstance         bool `yaml:"RDSInstance"`
 	EC2Instance         bool `yaml:"EC2Instance"`
 	CloudformationStack bool `yaml:"CloudformationStack"`

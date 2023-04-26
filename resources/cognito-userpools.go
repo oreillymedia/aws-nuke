@@ -2,14 +2,18 @@ package resources
 
 import (
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/cognitoidentityprovider"
+	"github.com/rebuy-de/aws-nuke/v2/pkg/config"
 )
 
 type CognitoUserPool struct {
 	svc  *cognitoidentityprovider.CognitoIdentityProvider
 	name *string
 	id   *string
+
+	featureFlags config.FeatureFlags
 }
 
 func init() {
@@ -48,13 +52,52 @@ func ListCognitoUserPools(sess *session.Session) ([]Resource, error) {
 	return resources, nil
 }
 
+func (f *CognitoUserPool) DisableDeletionProtection() error {
+	params := &cognitoidentityprovider.UpdateUserPoolInput{
+		UserPoolId:         f.id,
+		DeletionProtection: aws.String("INACTIVE"),
+	}
+	_, err := f.svc.UpdateUserPool(params)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (f *CognitoUserPool) FeatureFlags(ff config.FeatureFlags) {
+	f.featureFlags = ff
+}
+
+func (f *CognitoUserPool) Filter() error {
+	return nil
+}
+
 func (f *CognitoUserPool) Remove() error {
-
-	_, err := f.svc.DeleteUserPool(&cognitoidentityprovider.DeleteUserPoolInput{
+	params := &cognitoidentityprovider.DeleteUserPoolInput{
 		UserPoolId: f.id,
-	})
-
-	return err
+	}
+	_, err := f.svc.DeleteUserPool(params)
+	if err != nil {
+		if f.featureFlags.DisableDeletionProtection.CognitoUserPool {
+			awsErr, ok := err.(awserr.Error)
+			if ok && awsErr.Code() == "InvalidParameterException" &&
+				awsErr.Message() == "The user pool cannot be deleted because "+
+					"deletion protection is activated. Deletion protection must be "+
+					"inactivated first." {
+				err = f.DisableDeletionProtection()
+				if err != nil {
+					return err
+				}
+				_, err := f.svc.DeleteUserPool(params)
+				if err != nil {
+					return err
+				}
+				return nil
+			}
+		}
+		return err
+	}
+	return nil
 }
 
 func (f *CognitoUserPool) String() string {
