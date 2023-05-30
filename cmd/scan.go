@@ -73,6 +73,9 @@ func (s *scanner) list(region *Region, resourceType string) {
 			return
 		}
 
+		// check for this error "ThrottlingException: Rate exceeded"
+		// TODO: if there is a throttling exception call lister(sess) again 3 times with exponential backoff.
+		// or maybe try recursion and call s.list(region, resourceType)
 		awsErr, ok := err.(awserr.Error)
 		if ok && awsErr.Code() == "ThrottlingException" {
 			s.items <- &Item{
@@ -82,8 +85,6 @@ func (s *scanner) list(region *Region, resourceType string) {
 				Reason:   err.Error(),
 				Type:     resourceType,
 			}
-			dump := util.Indent(fmt.Sprintf("%v", err), "    ")
-			log.Errorf("Listing %s failed:\n%s", resourceType, dump)
 			return
 		}
 
