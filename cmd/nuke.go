@@ -259,9 +259,9 @@ func (n *Nuke) HandleQueue() {
 			n.HandleRemove(item)
 			item.Print()
 		case ItemStateFailed:
-			// item.Resource will be nil if an exception was thrown while retrieving the resourceType's
-			// items (I.E resourceTypes lister()), however we still pass down the reason and state so we
-			// aren't ignoring these exceptions.
+			// item.Resource will be nil if an exception was thrown while retrieving cloudControl
+			// resourceType's items (I.E resourceTypes lister()), however we still pass down the
+			// reason and state so we aren't ignoring these exceptions.
 			if item.Resource != nil {
 				n.HandleRemove(item)
 				n.HandleWait(item, listCache)
