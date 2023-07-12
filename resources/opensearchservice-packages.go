@@ -1,84 +1,52 @@
 package resources
 
 import (
-	"context"
-	"fmt"
-	"strings"
-	"time"
-
+	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/opensearchservice"
-
-	"github.com/ekristen/libnuke/pkg/registry"
-	"github.com/ekristen/libnuke/pkg/resource"
-	"github.com/ekristen/libnuke/pkg/types"
-
-	"github.com/ekristen/aws-nuke/v3/pkg/nuke"
+	"github.com/rebuy-de/aws-nuke/v2/pkg/types"
 )
 
-const OSPackageResource = "OSPackage"
-
-func init() {
-	registry.Register(&registry.Registration{
-		Name:   OSPackageResource,
-		Scope:  nuke.Account,
-		Lister: &OSPackageLister{},
-	})
+type OSPackage struct {
+	svc        *opensearchservice.OpenSearchService
+	domainName *string
+	packageID  *string
 }
 
-type OSPackageLister struct{}
+func init() {
+	register("OSPackage", ListOSPackages)
+}
 
-func (l *OSPackageLister) List(_ context.Context, o interface{}) ([]resource.Resource, error) {
-	opts := o.(*nuke.ListerOpts)
+func ListOSPackages(sess *session.Session) ([]Resource, error) {
+	svc := opensearchservice.New(sess)
 
-	svc := opensearchservice.New(opts.Session)
-	resources := make([]resource.Resource, 0)
-	var nextToken *string
+	listResp, err := svc.DescribePackages(&opensearchservice.DescribePackagesInput{})
+	if err != nil {
+		return nil, err
+	}
 
-	for {
-		params := &opensearchservice.DescribePackagesInput{
-			NextToken: nextToken,
-		}
-		listResp, err := svc.DescribePackages(params)
+	resources := make([]Resource, 0)
+
+	for _, pkg := range listResp.PackageDetailsList {
+		domainResp, err := svc.ListDomainsForPackage(&opensearchservice.ListDomainsForPackageInput{
+			PackageID: pkg.PackageID,
+		})
 		if err != nil {
 			return nil, err
 		}
 
-		for _, pkg := range listResp.PackageDetailsList {
+		for _, domain := range domainResp.DomainPackageDetailsList {
 			resources = append(resources, &OSPackage{
-				svc:         svc,
-				packageID:   pkg.PackageID,
-				packageName: pkg.PackageName,
-				createdTime: pkg.CreatedAt,
+				svc:        svc,
+				domainName: domain.DomainName,
+				packageID:  pkg.PackageID,
 			})
 		}
-
-		// Check if there are more results
-		if listResp.NextToken == nil {
-			break // No more results, exit the loop
-		}
-
-		// Set the nextToken for the next iteration
-		nextToken = listResp.NextToken
 	}
 
 	return resources, nil
 }
 
-type OSPackage struct {
-	svc         *opensearchservice.OpenSearchService
-	packageID   *string
-	packageName *string
-	createdTime *time.Time
-}
-
-func (o *OSPackage) Filter() error {
-	if strings.HasPrefix(*o.packageID, "G") {
-		return fmt.Errorf("cannot delete default opensearch packages")
-	}
-	return nil
-}
-
-func (o *OSPackage) Remove(_ context.Context) error {
+func (o *OSPackage) Remove() error {
 	_, err := o.svc.DeletePackage(&opensearchservice.DeletePackageInput{
 		PackageID: o.packageID,
 	})
@@ -88,9 +56,6 @@ func (o *OSPackage) Remove(_ context.Context) error {
 
 func (o *OSPackage) Properties() types.Properties {
 	properties := types.NewProperties()
-	properties.Set("PackageID", o.packageID)
-	properties.Set("PackageName", o.packageName)
-	properties.Set("CreatedTime", o.createdTime.Format(time.RFC3339))
 	return properties
 }
 
