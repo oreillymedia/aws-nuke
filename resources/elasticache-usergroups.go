@@ -4,7 +4,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/elasticache"
-	"github.com/rebuy-de/aws-nuke/v2/pkg/types"
 )
 
 type ElasticacheUserGroup struct {
@@ -18,33 +17,19 @@ func init() {
 
 func ListElasticacheUserGroups(sess *session.Session) ([]Resource, error) {
 	svc := elasticache.New(sess)
-	resources := []Resource{}
-	var nextToken *string
 
-	for {
-		params := &elasticache.DescribeUserGroupsInput{
-			MaxRecords: aws.Int64(100),
-			Marker:     nextToken,
-		}
-		resp, err := svc.DescribeUserGroups(params)
-		if err != nil {
-			return nil, err
-		}
+	params := &elasticache.DescribeUserGroupsInput{MaxRecords: aws.Int64(100)}
+	resp, err := svc.DescribeUserGroups(params)
+	if err != nil {
+		return nil, err
+	}
+	var resources []Resource
+	for _, userGroup := range resp.UserGroups {
+		resources = append(resources, &ElasticacheUserGroup{
+			svc:     svc,
+			groupId: userGroup.UserGroupId,
+		})
 
-		for _, userGroup := range resp.UserGroups {
-			resources = append(resources, &ElasticacheUserGroup{
-				svc:     svc,
-				groupId: userGroup.UserGroupId,
-			})
-		}
-
-		// Check if there are more results
-		if resp.Marker == nil {
-			break // No more results, exit the loop
-		}
-
-		// Set the nextToken for the next iteration
-		nextToken = resp.Marker
 	}
 
 	return resources, nil
@@ -61,12 +46,6 @@ func (i *ElasticacheUserGroup) Remove() error {
 	}
 
 	return nil
-}
-
-func (i *ElasticacheUserGroup) Properties() types.Properties {
-	properties := types.NewProperties()
-	properties.Set("ID", i.groupId)
-	return properties
 }
 
 func (i *ElasticacheUserGroup) String() string {
