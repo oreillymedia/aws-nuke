@@ -3,9 +3,8 @@ module github.com/ekristen/aws-nuke/v3
 go 1.21.6
 
 require (
-	github.com/aws/aws-sdk-go v1.54.20
-	github.com/ekristen/libnuke v0.21.1
-	github.com/fatih/color v1.17.0
+	github.com/aws/aws-sdk-go v1.44.307
+	github.com/fatih/color v1.15.0
 	github.com/golang/mock v1.6.0
 	github.com/google/uuid v1.6.0
 	github.com/gotidy/ptr v1.4.0
