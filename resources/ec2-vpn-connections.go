@@ -16,7 +16,10 @@ import (
 	"github.com/ekristen/aws-nuke/v3/pkg/nuke"
 )
 
-const EC2VPNConnectionResource = "EC2VPNConnection"
+type EC2VPNConnection struct {
+	svc  *ec2.EC2
+	conn *ec2.VpnConnection
+}
 
 func init() {
 	registry.Register(&registry.Registration{

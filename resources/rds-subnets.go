@@ -46,6 +46,7 @@ func (l *RDSDBSubnetGroupLister) List(_ context.Context, o interface{}) ([]resou
 		tags, err := svc.ListTagsForResource(&rds.ListTagsForResourceInput{
 			ResourceName: subnetGroup.DBSubnetGroupArn,
 		})
+
 		if err != nil {
 			continue
 		}

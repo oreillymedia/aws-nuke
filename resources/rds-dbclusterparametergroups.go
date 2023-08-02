@@ -63,6 +63,39 @@ type RDSDBClusterParameterGroup struct {
 	tags []*rds.Tag
 }
 
+func init() {
+	register("RDSDBClusterParameterGroup", ListRDSClusterParameterGroups)
+}
+
+func ListRDSClusterParameterGroups(sess *session.Session) ([]Resource, error) {
+	svc := rds.New(sess)
+
+	params := &rds.DescribeDBClusterParameterGroupsInput{MaxRecords: aws.Int64(100)}
+	resp, err := svc.DescribeDBClusterParameterGroups(params)
+	if err != nil {
+		return nil, err
+	}
+	var resources []Resource
+	for _, parametergroup := range resp.DBClusterParameterGroups {
+		tags, err := svc.ListTagsForResource(&rds.ListTagsForResourceInput{
+			ResourceName: parametergroup.DBClusterParameterGroupArn,
+		})
+
+		if err != nil {
+			continue
+		}
+
+		resources = append(resources, &RDSDBClusterParameterGroup{
+			svc:  svc,
+			name: parametergroup.DBClusterParameterGroupName,
+			tags: tags.TagList,
+		})
+
+	}
+
+	return resources, nil
+}
+
 func (i *RDSDBClusterParameterGroup) Filter() error {
 	if strings.HasPrefix(*i.name, "default.") {
 		return fmt.Errorf("cannot delete default parameter group")
