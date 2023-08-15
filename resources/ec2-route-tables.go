@@ -1,11 +1,9 @@
 package resources
 
 import (
-	"context"
 	"fmt"
 
-	"github.com/gotidy/ptr"
-
+	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 
 	"github.com/ekristen/libnuke/pkg/registry"
@@ -64,25 +62,17 @@ func (l *EC2RouteTableLister) List(_ context.Context, o interface{}) ([]resource
 	return resources, nil
 }
 
-type EC2RouteTable struct {
-	svc        *ec2.EC2
-	routeTable *ec2.RouteTable
-	defaultVPC bool
-	vpc        *ec2.Vpc
-	ownerID    *string
-}
+func (i *EC2RouteTable) Filter() error {
 
-func (e *EC2RouteTable) Filter() error {
-	for _, association := range e.routeTable.Associations {
+	for _, association := range i.routeTable.Associations {
 		if *association.Main {
-			return fmt.Errorf("main route tables cannot be deleted")
+			return fmt.Errorf("Main RouteTables cannot be deleted")
 		}
 	}
-
 	return nil
 }
 
-func (e *EC2RouteTable) Remove(_ context.Context) error {
+func (e *EC2RouteTable) Remove() error {
 	params := &ec2.DeleteRouteTableInput{
 		RouteTableId: e.routeTable.RouteTableId,
 	}
