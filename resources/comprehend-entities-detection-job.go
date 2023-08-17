@@ -41,8 +41,8 @@ func (l *ComprehendEntitiesDetectionJobLister) List(_ context.Context, o interfa
 		}
 
 		for _, entitiesDetectionJob := range resp.EntitiesDetectionJobPropertiesList {
-			switch ptr.ToString(entitiesDetectionJob.JobStatus) {
-			case comprehend.JobStatusStopped, comprehend.JobStatusFailed, comprehend.JobStatusCompleted:
+			switch *entitiesDetectionJob.JobStatus {
+			case "STOPPED", "FAILED", "COMPLETED":
 				// if the job has already been stopped, failed, or completed; do not try to stop it again
 				continue
 			}
