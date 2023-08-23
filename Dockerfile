@@ -1,5 +1,24 @@
-# syntax=docker/dockerfile:1.10-labs
-FROM alpine:3.20.3 as base
+FROM golang:1.21-alpine as builder
+
+RUN apk add --no-cache git make curl openssl
+
+# Configure Go
+ENV GOPATH=/go PATH=/go/bin:$PATH CGO_ENABLED=0 GO111MODULE=on
+RUN mkdir -p ${GOPATH}/src ${GOPATH}/bin
+
+WORKDIR /src
+
+COPY go.mod .
+COPY go.sum .
+RUN go mod download
+
+COPY . .
+
+RUN set -x \
+ && make build \
+ && cp /src/dist/aws-nuke /usr/local/bin/
+
+FROM alpine:latest
 RUN apk add --no-cache ca-certificates
 RUN adduser -D aws-nuke
 

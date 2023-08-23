@@ -1,6 +1,6 @@
 module github.com/ekristen/aws-nuke/v3
 
-go 1.21.6
+go 1.21
 
 require (
 	github.com/aws/aws-sdk-go v1.44.328
