@@ -7,12 +7,8 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/mgn"
-
-	"github.com/ekristen/libnuke/pkg/registry"
-	"github.com/ekristen/libnuke/pkg/resource"
-	"github.com/ekristen/libnuke/pkg/types"
-
-	"github.com/ekristen/aws-nuke/v3/pkg/nuke"
+	"github.com/rebuy-de/aws-nuke/v2/pkg/types"
+	"github.com/sirupsen/logrus"
 )
 
 const MGNJobResource = "MGNJob"
@@ -40,12 +36,10 @@ func (l *MGNJobLister) List(_ context.Context, o interface{}) ([]resource.Resour
 	for {
 		output, err := svc.DescribeJobs(params)
 		if err != nil {
-			var awsErr awserr.Error
-			ok := errors.As(err, &awsErr)
-			if ok && awsErr.Code() == "UninitializedAccountException" {
+			if IsAWSError(err, mgn.ErrCodeUninitializedAccountException) {
+				logrus.Info("MGNJob: Account not initialized for Application Migration Service. Ignore if you haven't set it up.")
 				return nil, nil
 			}
-
 			return nil, err
 		}
 

@@ -1,17 +1,12 @@
 package resources
 
 import (
-	"context"
-	"errors"
+	"strings"
 
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/fms"
-
-	"github.com/ekristen/libnuke/pkg/registry"
-	"github.com/ekristen/libnuke/pkg/resource"
-	"github.com/ekristen/libnuke/pkg/types"
-
-	"github.com/ekristen/aws-nuke/v3/pkg/nuke"
+	"github.com/rebuy-de/aws-nuke/v2/pkg/types"
+	"github.com/sirupsen/logrus"
 )
 
 const FMSNotificationChannelResource = "FMSNotificationChannel"
@@ -33,10 +28,10 @@ func (l *FMSNotificationChannelLister) List(_ context.Context, o interface{}) ([
 	resources := make([]resource.Resource, 0)
 
 	if _, err := svc.GetNotificationChannel(&fms.GetNotificationChannelInput{}); err != nil {
-		var aerr awserr.Error
-		if errors.As(err, &aerr) {
-			if aerr.Code() != fms.ErrCodeResourceNotFoundException {
-				return nil, err
+		if aerr, ok := err.(awserr.Error); ok {
+			if strings.Contains(aerr.Message(), "No default admin could be found") {
+				logrus.Infof("FMSNotificationChannel: %s. Ignore if you haven't set it up.", aerr.Message())
+				return nil, nil
 			}
 		}
 	} else {
