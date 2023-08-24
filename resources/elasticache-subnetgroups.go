@@ -1,11 +1,8 @@
 package resources
 
 import (
-	"context"
 	"fmt"
 	"strings"
-
-	"github.com/sirupsen/logrus"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/elasticache"
@@ -68,32 +65,14 @@ func (l *ElasticacheSubnetGroupLister) List(_ context.Context, o interface{}) ([
 	return resources, nil
 }
 
-type ElasticacheSubnetGroup struct {
-	svc  elasticacheiface.ElastiCacheAPI
-	name *string
-	Tags []*elasticache.Tag
-}
-
 func (i *ElasticacheSubnetGroup) Filter() error {
 	if strings.HasPrefix(*i.name, "default") {
-		return fmt.Errorf("cannot delete default subnet group")
+		return fmt.Errorf("Cannot delete default subnet group")
 	}
 	return nil
 }
 
-func (i *ElasticacheSubnetGroup) Properties() types.Properties {
-	properties := types.NewProperties()
-
-	properties.Set("Name", i.name)
-
-	for _, tag := range i.Tags {
-		properties.SetTag(tag.Key, tag.Value)
-	}
-
-	return properties
-}
-
-func (i *ElasticacheSubnetGroup) Remove(_ context.Context) error {
+func (i *ElasticacheSubnetGroup) Remove() error {
 	params := &elasticache.DeleteCacheSubnetGroupInput{
 		CacheSubnetGroupName: i.name,
 	}

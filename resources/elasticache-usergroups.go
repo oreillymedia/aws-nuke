@@ -1,40 +1,24 @@
 package resources
 
 import (
-	"context"
-
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/elasticache"
-
-	"github.com/ekristen/libnuke/pkg/registry"
-	"github.com/ekristen/libnuke/pkg/resource"
-	"github.com/ekristen/libnuke/pkg/types"
-
-	"github.com/ekristen/aws-nuke/v3/pkg/nuke"
+	"github.com/rebuy-de/aws-nuke/v2/pkg/types"
 )
 
 type ElasticacheUserGroup struct {
 	svc     *elasticache.ElastiCache
-	groupID *string
+	groupId *string
 }
-
-const ElasticacheUserGroupResource = "ElasticacheUserGroup"
 
 func init() {
-	registry.Register(&registry.Registration{
-		Name:   ElasticacheUserGroupResource,
-		Scope:  nuke.Account,
-		Lister: &ElasticacheUserGroupLister{},
-	})
+	register("ElasticacheUserGroup", ListElasticacheUserGroups)
 }
 
-type ElasticacheUserGroupLister struct{}
-
-func (l *ElasticacheUserGroupLister) List(_ context.Context, o interface{}) ([]resource.Resource, error) {
-	opts := o.(*nuke.ListerOpts)
-
-	svc := elasticache.New(opts.Session)
-	resources := make([]resource.Resource, 0)
+func ListElasticacheUserGroups(sess *session.Session) ([]Resource, error) {
+	svc := elasticache.New(sess)
+	resources := []Resource{}
 	var nextToken *string
 
 	for {
@@ -50,7 +34,7 @@ func (l *ElasticacheUserGroupLister) List(_ context.Context, o interface{}) ([]r
 		for _, userGroup := range resp.UserGroups {
 			resources = append(resources, &ElasticacheUserGroup{
 				svc:     svc,
-				groupID: userGroup.UserGroupId,
+				groupId: userGroup.UserGroupId,
 			})
 		}
 
@@ -66,9 +50,9 @@ func (l *ElasticacheUserGroupLister) List(_ context.Context, o interface{}) ([]r
 	return resources, nil
 }
 
-func (i *ElasticacheUserGroup) Remove(_ context.Context) error {
+func (i *ElasticacheUserGroup) Remove() error {
 	params := &elasticache.DeleteUserGroupInput{
-		UserGroupId: i.groupID,
+		UserGroupId: i.groupId,
 	}
 
 	_, err := i.svc.DeleteUserGroup(params)
@@ -81,10 +65,10 @@ func (i *ElasticacheUserGroup) Remove(_ context.Context) error {
 
 func (i *ElasticacheUserGroup) Properties() types.Properties {
 	properties := types.NewProperties()
-	properties.Set("ID", i.groupID)
+	properties.Set("ID", i.groupId)
 	return properties
 }
 
 func (i *ElasticacheUserGroup) String() string {
-	return *i.groupID
+	return *i.groupId
 }
