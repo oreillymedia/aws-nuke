@@ -13,7 +13,12 @@ import (
 	"github.com/ekristen/aws-nuke/v3/pkg/nuke"
 )
 
-const EC2RouteTableResource = "EC2RouteTable"
+type EC2RouteTable struct {
+	svc        *ec2.EC2
+	routeTable *ec2.RouteTable
+	defaultVPC bool
+	ownerID    *string
+}
 
 func init() {
 	registry.Register(&registry.Registration{
@@ -53,8 +58,7 @@ func (l *EC2RouteTableLister) List(_ context.Context, o interface{}) ([]resource
 		resources = append(resources, &EC2RouteTable{
 			svc:        svc,
 			routeTable: out,
-			defaultVPC: defVpcID == ptr.ToString(out.VpcId),
-			vpc:        vpc,
+			defaultVPC: defVpcId == *out.VpcId,
 			ownerID:    out.OwnerId,
 		})
 	}
@@ -96,11 +100,8 @@ func (e *EC2RouteTable) Properties() types.Properties {
 	for _, tagValue := range e.routeTable.Tags {
 		properties.SetTag(tagValue.Key, tagValue.Value)
 	}
-
-	for _, tagValue := range e.vpc.Tags {
-		properties.SetTagWithPrefix("vpc", tagValue.Key, tagValue.Value)
-	}
-
+	properties.Set("DefaultVPC", e.defaultVPC)
+	properties.Set("OwnerID", e.ownerID)
 	return properties
 }
 
