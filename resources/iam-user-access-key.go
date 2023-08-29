@@ -1,8 +1,6 @@
 package resources
 
 import (
-	"context"
-
 	"fmt"
 	"time"
 
@@ -30,8 +28,9 @@ func init() {
 }
 
 type IAMUserAccessKey struct {
-	svc         iamiface.IAMAPI
-	accessKeyID string
+	svc         *iam.IAM
+	accessKeyId string
+	createDate  *time.Time
 	userName    string
 	status      string
 	createDate  *time.Time
@@ -99,7 +98,8 @@ func (l *IAMUserAccessKeyLister) List(_ context.Context, o interface{}) ([]resou
 		for _, meta := range resp.AccessKeyMetadata {
 			resources = append(resources, &IAMUserAccessKey{
 				svc:         svc,
-				accessKeyID: *meta.AccessKeyId,
+				accessKeyId: *meta.AccessKeyId,
+				createDate:  meta.CreateDate,
 				userName:    *meta.UserName,
 				status:      *meta.Status,
 				createDate:  meta.CreateDate,
@@ -109,4 +109,37 @@ func (l *IAMUserAccessKeyLister) List(_ context.Context, o interface{}) ([]resou
 	}
 
 	return resources, nil
+}
+
+func (e *IAMUserAccessKey) Remove() error {
+	_, err := e.svc.DeleteAccessKey(
+		&iam.DeleteAccessKeyInput{
+			AccessKeyId: &e.accessKeyId,
+			UserName:    &e.userName,
+		})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (e *IAMUserAccessKey) Properties() types.Properties {
+	properties := types.NewProperties()
+	properties.Set("UserName", e.userName)
+	properties.Set("AccessKeyID", e.accessKeyId)
+
+	if e.createDate != nil {
+		properties.Set("CreateDate", e.createDate.Format(time.RFC3339))
+	}
+
+	for _, tag := range e.userTags {
+		properties.SetTag(tag.Key, tag.Value)
+	}
+
+	return properties
+}
+
+func (e *IAMUserAccessKey) String() string {
+	return fmt.Sprintf("%s -> %s", e.userName, e.accessKeyId)
 }

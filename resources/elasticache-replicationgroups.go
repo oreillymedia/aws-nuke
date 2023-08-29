@@ -1,18 +1,18 @@
 package resources
 
 import (
-	"context"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/elasticache"
-
-	"github.com/ekristen/libnuke/pkg/registry"
-	"github.com/ekristen/libnuke/pkg/resource"
-
-	"github.com/ekristen/aws-nuke/v3/pkg/nuke"
+	"github.com/rebuy-de/aws-nuke/v2/pkg/types"
 )
 
-const ElasticacheReplicationGroupResource = "ElasticacheReplicationGroup"
+type ElasticacheReplicationGroup struct {
+	svc        *elasticache.ElastiCache
+	groupID    *string
+	createTime *time.Time
+}
 
 func init() {
 	registry.Register(&registry.Registration{
@@ -40,8 +40,9 @@ func (l *ElasticacheReplicationGroupLister) List(_ context.Context, o interface{
 
 		for _, replicationGroup := range resp.ReplicationGroups {
 			resources = append(resources, &ElasticacheReplicationGroup{
-				svc:     svc,
-				groupID: replicationGroup.ReplicationGroupId,
+				svc:        svc,
+				groupID:    replicationGroup.ReplicationGroupId,
+				createTime: replicationGroup.ReplicationGroupCreateTime,
 			})
 		}
 
@@ -55,12 +56,19 @@ func (l *ElasticacheReplicationGroupLister) List(_ context.Context, o interface{
 	return resources, nil
 }
 
-type ElasticacheReplicationGroup struct {
-	svc     *elasticache.ElastiCache
-	groupID *string
+func (i *ElasticacheReplicationGroup) Properties() types.Properties {
+	properties := types.NewProperties()
+
+	properties.Set("ID", i.groupID)
+
+	if i.createTime != nil {
+		properties.Set("CreateTime", i.createTime.Format(time.RFC3339))
+	}
+
+	return properties
 }
 
-func (i *ElasticacheReplicationGroup) Remove(_ context.Context) error {
+func (i *ElasticacheReplicationGroup) Remove() error {
 	params := &elasticache.DeleteReplicationGroupInput{
 		ReplicationGroupId: i.groupID,
 	}
