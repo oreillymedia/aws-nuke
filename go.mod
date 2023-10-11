@@ -3,17 +3,16 @@ module github.com/ekristen/aws-nuke/v3
 go 1.21
 
 require (
-	github.com/aws/aws-sdk-go v1.45.12
+	github.com/aws/aws-sdk-go v1.45.24
 	github.com/fatih/color v1.15.0
 	github.com/golang/mock v1.6.0
 	github.com/google/uuid v1.3.1
 	github.com/mb0/glob v0.0.0-20160210091149-1eb79d2de6c4
 	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.9.3
-	github.com/stretchr/testify v1.9.0
-	github.com/urfave/cli/v2 v2.27.5
-	go.uber.org/ratelimit v0.3.1
-	golang.org/x/text v0.19.0
+	github.com/spf13/cobra v1.7.0
+	github.com/stretchr/testify v1.8.4
+	golang.org/x/sync v0.4.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 
