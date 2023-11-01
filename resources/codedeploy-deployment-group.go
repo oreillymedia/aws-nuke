@@ -1,91 +1,69 @@
 package resources
 
 import (
-	"context"
-
+	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/codedeploy"
-
-	"github.com/ekristen/libnuke/pkg/registry"
-	"github.com/ekristen/libnuke/pkg/resource"
-	"github.com/ekristen/libnuke/pkg/types"
-
-	"github.com/ekristen/aws-nuke/v3/pkg/nuke"
+	"github.com/rebuy-de/aws-nuke/v2/pkg/types"
 )
 
-const CodeDeployDeploymentGroupResource = "CodeDeployDeploymentGroup"
-
-func init() {
-	registry.Register(&registry.Registration{
-		Name:   CodeDeployDeploymentGroupResource,
-		Scope:  nuke.Account,
-		Lister: &CodeDeployDeploymentGroupLister{},
-	})
+type CodeDeployDeploymentGroup struct {
+	svc                 *codedeploy.CodeDeploy
+	deploymentGroupName *string
+	applicationName     *string
 }
 
-type CodeDeployDeploymentGroupLister struct{}
+func init() {
+	register("CodeDeployDeploymentGroup", ListCodeDeployDeploymentGroups)
+}
 
-func (l *CodeDeployDeploymentGroupLister) List(_ context.Context, o interface{}) ([]resource.Resource, error) {
-	opts := o.(*nuke.ListerOpts)
-	var resources []resource.Resource
+func ListCodeDeployDeploymentGroups(sess *session.Session) ([]Resource, error) {
+	svc := codedeploy.New(sess)
+	resources := []Resource{}
 
-	svc := codedeploy.New(opts.Session)
+	appParams := &codedeploy.ListApplicationsInput{}
+	appResp, err := svc.ListApplications(appParams)
+	if err != nil {
+		return nil, err
+	}
 
-	params := &codedeploy.ListApplicationsInput{}
-
-	for {
-		appResp, err := svc.ListApplications(params)
+	for _, appName := range appResp.Applications {
+		// For each application, list deployment groups
+		deploymentGroupParams := &codedeploy.ListDeploymentGroupsInput{
+			ApplicationName: appName,
+		}
+		deploymentGroupResp, err := svc.ListDeploymentGroups(deploymentGroupParams)
 		if err != nil {
 			return nil, err
 		}
 
-		for _, appName := range appResp.Applications {
-			// For each application, list deployment groups
-			deploymentGroupParams := &codedeploy.ListDeploymentGroupsInput{
-				ApplicationName: appName,
-			}
-			deploymentGroupResp, err := svc.ListDeploymentGroups(deploymentGroupParams)
-			if err != nil {
-				return nil, err
-			}
-
-			for _, group := range deploymentGroupResp.DeploymentGroups {
-				resources = append(resources, &CodeDeployDeploymentGroup{
-					svc:             svc,
-					Name:            group,
-					ApplicationName: appName,
-				})
-			}
+		for _, group := range deploymentGroupResp.DeploymentGroups {
+			resources = append(resources, &CodeDeployDeploymentGroup{
+				svc:                 svc,
+				deploymentGroupName: group,
+				applicationName:     appName,
+			})
 		}
-
-		if appResp.NextToken == nil {
-			break
-		}
-
-		params.NextToken = appResp.NextToken
 	}
 
 	return resources, nil
 }
 
-type CodeDeployDeploymentGroup struct {
-	svc             *codedeploy.CodeDeploy
-	Name            *string
-	ApplicationName *string
-}
-
-func (r *CodeDeployDeploymentGroup) Remove(_ context.Context) error {
-	_, err := r.svc.DeleteDeploymentGroup(&codedeploy.DeleteDeploymentGroupInput{
-		ApplicationName:     r.ApplicationName,
-		DeploymentGroupName: r.Name,
+func (f *CodeDeployDeploymentGroup) Remove() error {
+	_, err := f.svc.DeleteDeploymentGroup(&codedeploy.DeleteDeploymentGroupInput{
+		ApplicationName:     f.applicationName,
+		DeploymentGroupName: f.deploymentGroupName,
 	})
 
 	return err
 }
 
-func (r *CodeDeployDeploymentGroup) Properties() types.Properties {
-	return types.NewPropertiesFromStruct(r)
+func (f *CodeDeployDeploymentGroup) Properties() types.Properties {
+	properties := types.NewProperties()
+	properties.Set("DeploymentGroupName", f.deploymentGroupName)
+	properties.Set("ApplicationName", f.applicationName)
+	return properties
 }
 
-func (r *CodeDeployDeploymentGroup) String() string {
-	return *r.Name
+func (f *CodeDeployDeploymentGroup) String() string {
+	return *f.deploymentGroupName
 }
