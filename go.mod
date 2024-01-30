@@ -3,10 +3,10 @@ module github.com/ekristen/aws-nuke/v3
 go 1.21
 
 require (
-	github.com/aws/aws-sdk-go v1.50.1
+	github.com/aws/aws-sdk-go v1.50.6
 	github.com/fatih/color v1.16.0
 	github.com/golang/mock v1.6.0
-	github.com/google/uuid v1.5.0
+	github.com/google/uuid v1.6.0
 	github.com/mb0/glob v0.0.0-20160210091149-1eb79d2de6c4
 	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.9.3
