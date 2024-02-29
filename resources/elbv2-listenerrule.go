@@ -1,47 +1,39 @@
 package resources
 
 import (
-	"context"
 	"fmt"
 
-	"github.com/sirupsen/logrus"
-
+	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/elbv2"
-
-	"github.com/ekristen/libnuke/pkg/registry"
-	"github.com/ekristen/libnuke/pkg/resource"
-	"github.com/ekristen/libnuke/pkg/slices"
-	"github.com/ekristen/libnuke/pkg/types"
-
-	"github.com/ekristen/aws-nuke/v3/pkg/nuke"
+	"github.com/rebuy-de/aws-nuke/v2/pkg/types"
+	"github.com/sirupsen/logrus"
 )
 
 var elbv2ListenerRulePageSize int64 = 400 // AWS has a limit of 100 rules per listener
 
-const ELBv2ListenerRuleResource = "ELBv2ListenerRule"
-
-func init() {
-	registry.Register(&registry.Registration{
-		Name:   ELBv2ListenerRuleResource,
-		Scope:  nuke.Account,
-		Lister: &ELBv2ListenerRuleLister{},
-	})
+type ELBv2ListenerRule struct {
+	svc         *elbv2.ELBV2
+	ruleArn     *string
+	lbName      *string
+	listenerArn *string
+	tags        []*elbv2.Tag
 }
 
-type ELBv2ListenerRuleLister struct{}
+func init() {
+	register("ELBv2ListenerRule", ListELBv2ListenerRules)
+}
 
-func (l *ELBv2ListenerRuleLister) List(_ context.Context, o interface{}) ([]resource.Resource, error) {
-	opts := o.(*nuke.ListerOpts)
-
-	svc := elbv2.New(opts.Session)
+func ListELBv2ListenerRules(sess *session.Session) ([]Resource, error) {
+	svc := elbv2.New(sess)
 
 	// We need to retrieve ELBs then Listeners then Rules
 	lbs := make([]*elbv2.LoadBalancer, 0)
 	err := svc.DescribeLoadBalancersPages(
 		nil,
 		func(page *elbv2.DescribeLoadBalancersOutput, lastPage bool) bool {
-			lbs = append(lbs, page.LoadBalancers...)
-
+			for _, elbv2 := range page.LoadBalancers {
+				lbs = append(lbs, elbv2)
+			}
 			return !lastPage
 		},
 	)
@@ -53,7 +45,7 @@ func (l *ELBv2ListenerRuleLister) List(_ context.Context, o interface{}) ([]reso
 	ruleArns := make([]*string, 0)
 	ruleArnToResource := make(map[string]*ELBv2ListenerRule)
 
-	resources := make([]resource.Resource, 0)
+	resources := make([]Resource, 0)
 	for _, lb := range lbs {
 		err := svc.DescribeListenersPages(
 			&elbv2.DescribeListenersInput{
@@ -102,9 +94,10 @@ func (l *ELBv2ListenerRuleLister) List(_ context.Context, o interface{}) ([]reso
 		}
 	}
 
-	// Tags for Rules need to be fetched separately. We can only specify up to 20 in a single call.
+	// Tags for Rules need to be fetched separately
+	// We can only specify up to 20 in a single call
 	// See: https://github.com/aws/aws-sdk-go/blob/0e8c61841163762f870f6976775800ded4a789b0/service/elbv2/api.go#L5398
-	for _, ruleChunk := range slices.Chunk(ruleArns, 20) {
+	for _, ruleChunk := range Chunk(ruleArns, 20) {
 		tagResp, err := svc.DescribeTags(&elbv2.DescribeTagsInput{
 			ResourceArns: ruleChunk,
 		})
@@ -120,15 +113,7 @@ func (l *ELBv2ListenerRuleLister) List(_ context.Context, o interface{}) ([]reso
 	return resources, nil
 }
 
-type ELBv2ListenerRule struct {
-	svc         *elbv2.ELBV2
-	ruleArn     *string
-	lbName      *string
-	listenerArn *string
-	tags        []*elbv2.Tag
-}
-
-func (e *ELBv2ListenerRule) Remove(_ context.Context) error {
+func (e *ELBv2ListenerRule) Remove() error {
 	_, err := e.svc.DeleteRule(&elbv2.DeleteRuleInput{
 		RuleArn: e.ruleArn,
 	})
@@ -140,16 +125,14 @@ func (e *ELBv2ListenerRule) Remove(_ context.Context) error {
 }
 
 func (e *ELBv2ListenerRule) Properties() types.Properties {
-	properties := types.NewProperties()
-
-	properties.Set("ARN", e.ruleArn)
-	properties.Set("ListenerARN", e.listenerArn)
-	properties.Set("LoadBalancerName", e.lbName)
+	properties := types.NewProperties().
+		Set("ARN", e.ruleArn).
+		Set("ListenerARN", e.listenerArn).
+		Set("LoadBalancerName", e.lbName)
 
 	for _, tagValue := range e.tags {
 		properties.SetTag(tagValue.Key, tagValue.Value)
 	}
-
 	return properties
 }
 
