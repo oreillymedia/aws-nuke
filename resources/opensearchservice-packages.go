@@ -57,7 +57,7 @@ func ListOSPackages(sess *session.Session) ([]Resource, error) {
 }
 
 func (o *OSPackage) Filter() error {
-	if strings.HasPrefix(*o.packageID, "G") {
+	if strings.HasPrefix(*o.packageID, "G") || strings.HasPrefix(*o.packageID, "pkg-") {
 		return fmt.Errorf("cannot delete default opensearch packages")
 	}
 	return nil
